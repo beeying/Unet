@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import torch
 
+
 class RandomCrop(object):
     """Crop randomly the image in a sample.
 
@@ -48,9 +49,10 @@ class RandomBrightness(object):
         noise_val = np.random.uniform(0, self.std, size=image.shape)
 
         image = image + torch.Tensor(noise_val.astype(np.float32))
-        image = (image - image.min())/(image.max() - image.min())
+        image = (image - image.min()) / (image.max() - image.min())
 
         return image, mask
+
 
 class Translate_and_Rotate(object):
     """Translate and rotate images randomly.
@@ -73,21 +75,21 @@ class Translate_and_Rotate(object):
         self.max_xtranslation = max_xtranslation
         self.max_ytranslation = max_ytranslation
         self.max_rotation = max_rotation
-        self.flip =flip*100
+        self.flip = flip * 100
 
     def __call__(self, old, old_mask):
         xtranslation = np.random.randint(-self.max_xtranslation,
-                                                       self.max_xtranslation,
-                                                       size=1)
+                                         self.max_xtranslation,
+                                         size=1)
         ytranslation = np.random.randint(-self.max_ytranslation,
-                                                       self.max_ytranslation,
-                                                       size=1)
+                                         self.max_ytranslation,
+                                         size=1)
         degree = np.random.randint(-self.max_rotation,
-                                    self.max_rotation,
-                                    size=1)
+                                   self.max_rotation,
+                                   size=1)
 
-        old_image = Image.fromarray(255*old.reshape((256,256)))
-        old_mask = Image.fromarray(255*old_mask.reshape((256, 256)))
+        old_image = Image.fromarray(255 * old.reshape((256, 256)))
+        old_mask = Image.fromarray(255 * old_mask.reshape((256, 256)))
         xsize, ysize = old_image.size
 
         new_image = Image.new("L", (xsize, ysize))
@@ -96,8 +98,10 @@ class Translate_and_Rotate(object):
         new_image.paste(old_image, box=None)
         new_mask.paste(old_mask, box=None)
 
-        new_image = new_image.rotate(degree, translate=(xtranslation, ytranslation))
-        new_mask = new_mask.rotate(degree, translate=(xtranslation, ytranslation))
+        new_image = new_image.rotate(
+            degree, translate=(xtranslation, ytranslation))
+        new_mask = new_mask.rotate(
+            degree, translate=(xtranslation, ytranslation))
         chance = np.random.randint(0, 100, size=1)
         if chance < self.flip:
             new_image = new_image.transpose(Image.FLIP_LEFT_RIGHT)
@@ -106,10 +110,9 @@ class Translate_and_Rotate(object):
         new_mask = np.array(new_mask).astype(np.float32)
 
         pixel_coor = np.where(new_image == 0)
-        new_image[pixel_coor] = 255*old[10, 10]
+        new_image[pixel_coor] = 255 * old[10, 10]
 
-
-        return torch.Tensor(new_image.reshape((256,256,1))/255), torch.Tensor(new_mask.reshape((256,256,1))/255)
+        return torch.Tensor(new_image.reshape((256, 256, 1)) / 255), torch.Tensor(new_mask.reshape((256, 256, 1)) / 255)
 
 
 class RandomTranslateWithReflect:
