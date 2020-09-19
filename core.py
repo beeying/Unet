@@ -5,7 +5,7 @@ import torch.nn as nn
 mse_criterion = nn.MSELoss(reduction='sum')
 
 
-def train(train_loader, args, encoder, decoder, loss):
+def train(train_loader, args, encoder, decoder):
     # switch to train mode
     encoder.train()
     decoder.train()
@@ -19,7 +19,7 @@ def train(train_loader, args, encoder, decoder, loss):
         loss.backward()
         optimizer.step()
 
-    return
+    return loss.item()
 
 
 def evaluate():

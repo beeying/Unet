@@ -37,14 +37,14 @@ class getH5Data(Dataset):
         return data_dict
 
 
-def create_data_loaders(is_non_texture, is_train, datadir, args):
-    if is_train:
-        if is_non_texture:
-            path = [os.path.join(datadir, 'unlabeled_non_texture', args.type),
-                    os.path.join(datadir, 'unlabeled_non_texture', args.type)]
+def create_data_loaders(args):
+    if args.is_train:
+        if args.is_non_texture:
+            path = [os.path.join(args.datadir, 'unlabeled_non_texture', args.type),
+                    os.path.join(args.datadir, 'unlabeled_non_texture', args.type)]
         else:
-            path = [os.path.join(datadir, 'unlabeled_texture', args.type),
-                    os.path.join(datadir, 'labeled_texture', args.type)]
+            path = [os.path.join(args.datadir, 'unlabeled_texture', args.type),
+                    os.path.join(args.datadir, 'labeled_texture', args.type)]
             # path = [os.path.join(datadir, 'unlabeled'), os.path.join(datadir, 'labeled', '3_samples')]
 
         unlabeled_minibatch_size = args.batch_size - args.labeled_batch_size
