@@ -1,74 +1,70 @@
-import numpy as np
-import torch
-import torch.nn as nn
-import argparse
 import models
 import utils
+import torch.backends.cudnn as cudnn
+import torch.nn as nn
+from config import args
+from dataset import create_data_loaders
 from core import *
-
-root = '/home/beeying/Desktop/NUS'
-
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument('--gpu', default=0,
-                    help='gpu index if you have multiple gpus')
-parser.add_argument('--batch_size', type=int,
-                    default=16, help='batch_size')
-parser.add_argument('--batch_size_labeled', type=int,
-                    default=0, help='batch_size')
-parser.add_argument('--dataset', default='all_mask', help='dataset')
-parser.add_argument('--is_train', action='store_false', help='train or test')
-parser.add_argument('--learning_rate', type=float,
-                    default=0.0001, help='initial learning rate for Adam')
-parser.add_argument('--is_decay', action='store_false',
-                    help='learning rate decay')
-parser.add_argument('--num_epoch', type=int, default=200,
-                    help='number of trining epoch')
-parser.add_argument('--load_model', default=type,
-                    help='folder of saved model that you wish to continue training')
-parser.add_argument('--print_freq', type=int, default=10,
-                    help='print frequency for loss, default: 100')
-parser.add_argument('--save_freq', type=int, default=10,
-                    help='save frequency for model, default: 5000')
-parser.add_argument('--data_dir', default=root +
-                    '/data/pytorch_semi/unlabeled_non_texture', help='files directory')
-parser.add_argument('--out_dir', default=root +
-                    '/experiment/AE_pytorch/', help='output directory')
-parser.add_argument('--z_chanel', type=int, default=500,
-                    help='output directory')
-parser.add_argument('--type', default=type, help='dataset category')
-parser.add_argument('--w', type=int, default=w, help='SSIM window size')
-parser.add_argument('--is_continue', default=False, help='continue to train')
-parser.add_argument('--is_AE_pretrained', default=True,
-                    help='continue to train')
-parser.add_argument('--is_nontexture', default=is_nontexture,
-                    help='continue to train')
-
-args = parser.parse_args()
-LOG = logging.getLogger('main')
+import core
 
 
-def main(args):
-    iter_time = 0
-    meters = utils.AverageMeterSet()
-    optimizer = torch.optim.Adam(model.parameters(), args.learning_rate)
-    train_loader = create_data_loaders(args)
-    encoder = models.encoder()
-    decoder = models.decoder()
-    while iter_time < args.num_epoch:
-        end = time.time()
-        loss = train(train_loader, args, encoder, decoder)
-        meters.update('data_time', time.time() - end)
-        meters.update('loss', loss)
-        if iter_time % args.save_freq == 0:
-            LOG.info(
-                'Epoch: [{0}]\t'
-                'Data {meters[data_time]:.3f}\t'
-                'loss {meters[loss]:.4f}\t'.format(
-                    iter_time, meters=meters))
+out_paths = utils.create_save_path(cfg.path.out_dir, cfg.type)
+saver = utils.Saver(out_paths, image_size=(256, 256))
+LOG = utils.create_log(out_paths)
+
+best_score = 10e10
+
+
+def main(args, cfg):
+    print('Model: ', cfg.model)
+    print('Data: ', cfg.type)
+    Model = models.__dict__[cfg.model]()
+    loss_fn = Model.loss_fn
+    Train = core.__dict__[Model.train_obj]
+    Eval = core.__dict__[Model.eval_obj]
+    measure = Model.measure
+
+    model = nn.DataParallel(Model)
+    # model=Model.cuda()
+    LOG.debug(utils.parameters_string(model))
+    cudnn.benchmark = True
+
+    if args.is_train:
+        data_loader = create_data_loaders(cfg)
+        optimizer = torch.optim.Adam(model.parameters(), cfg.train.lr)
+        train_meter = utils.AverageMeterSet()
+        train = Train(cfg, data_loader, model, optimizer, saver, loss_fn, train_meter, LOG)
+
+        eval_loader = create_data_loaders(cfg, is_transform=False)
+        eval_meter = utils.AverageMeterSet()
+        eval = Eval(eval_loader, model, eval_meter, loss_fn, LOG, measure=measure)
+        for epoch in range(cfg.train.start_epoch, cfg.train.num_epoch):
+            output = train.step(epoch)
+            train.log_data(epoch)
+            if epoch % cfg.train.save_freq == 0:
+                eval.step(print_metric=True)
+                train.save_image(epoch, output)
+                if eval_meter['losses'].avg > best_score:
+                    train.best_score = max(eval_meter['losses'].avg, best_score)
+                    train.save_model(epoch)
+        eval.step(print_metric=True)
+
+    else:
+        eval_loader = create_data_loaders(cfg, is_transform=False)
+        eval_meter = utils.AverageMeterSet()
+        eval = Evaluate(eval_loader, model, eval_meter, LOG)
+        _, score = eval.step()
+
+
+def load_model(path, model, log):
+    assert os.path.isfile(path), "=> no checkpoint found at '{}'".format(path)
+    log.info("=> loading checkpoint '{}'".format(path))
+    checkpoint = torch.load(path)
+    cfg.train.start_epoch = checkpoint['epoch']
+    model.load_state_dict(checkpoint['state_dict'])
+    log.info("=> loaded checkpoint '{}' (epoch {})".format(path, checkpoint['epoch']))
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    main(args)
+    main(args, cfg)
+
