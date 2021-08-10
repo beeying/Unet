@@ -34,12 +34,12 @@ class Train:
         self.saver.save_images(output['input'], epoch, prefix='in')
         self.saver.save_images(output['output'], epoch, prefix='out')
 
-    def save_model(self, epoch):
+    def save_model(self, epoch, is_best):
         self.saver.save_checkpoint({
             'epoch': epoch + 1,
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
-        }, epoch + 1, is_best=True)
+        }, epoch + 1, is_best=is_best)
 
     def log_data(self, epoch):
         self.log.debug(

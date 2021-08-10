@@ -40,13 +40,13 @@ def main(args, cfg):
         eval = Eval(eval_loader, model, eval_meter, loss_fn, LOG, measure=measure)
         for epoch in range(cfg.train.start_epoch, cfg.train.num_epoch):
             output = train.step(epoch)
-            train.log_data(epoch)
             if epoch % cfg.train.save_freq == 0:
                 eval.step(print_metric=True)
                 train.save_image(epoch, output)
+                train.save_model(epoch, is_best=False)
                 if eval_meter['losses'].avg > best_score:
                     train.best_score = max(eval_meter['losses'].avg, best_score)
-                    train.save_model(epoch)
+                    train.save_model(epoch, is_best=False)
         eval.step(print_metric=True)
 
     else:

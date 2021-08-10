@@ -69,12 +69,11 @@ class Saver:
         self.writer = SummaryWriter(self.save_dir['logs'])
 
     def save_checkpoint(self, state, epoch, is_best):
-        # filename = 'checkpoint.{}.ckpt'.format(epoch)
-        # checkpoint_path = os.path.join(self.save_dir['model'], filename)
-        # best_path = os.path.join(self.save_dir['model'], 'best.ckpt')
-        # torch.save(state, checkpoint_path)
+        filename = 'checkpoint.{}.ckpt'.format(epoch)
+        checkpoint_path = os.path.join(self.save_dir['model'], filename)
+        torch.save(state, checkpoint_path)
         if is_best:
-            filename = 'checkpoint.{}.ckpt'.format(epoch)
+            # filename = 'checkpoint.{}.ckpt'.format(epoch)
             # checkpoint_path = os.path.join(self.save_dir['model'], filename)
             best_path = os.path.join(self.save_dir['model'], 'best.ckpt')
             torch.save(state, best_path)
